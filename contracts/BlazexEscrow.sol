@@ -5,9 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract BlazexEscrow is Ownable, ReentrancyGuard {
-    uint64 public escrowFeePercent = 1000; // 10 % default (must be multiple of 100)
-    uint256 public feeAmountCollected;
-
     address public manager = msg.sender;
     address public blazexWallet = msg.sender; // can update to staking contract later.
 
@@ -101,7 +98,6 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
 
     function emergencyWithdraw() external onlyOwner nonReentrant {
         // this function call is prohibited only call this function when there is stuck funds in the contract
-        feeAmountCollected = 0;
         payable(owner()).transfer(address(this).balance);
     }
 
