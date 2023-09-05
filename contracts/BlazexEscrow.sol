@@ -12,6 +12,7 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
 
     struct Project {
         uint256 amount;
+        uint256 blazexFee;
         address user;
         address token;
         bool paid;
@@ -44,7 +45,7 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
         require(amount > 0, "Escrow: amount must be greater then 0");
 
         Project storage project = projects[callId];
-        require(!(project.amount > 0), "Escrow: Call id exist");
+        require(project.amount == 0, "Escrow: Call id exist");
         require(!project.deposited, "Escrow: deposited already");
         require(
             msg.value >= amount,
@@ -57,6 +58,7 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
         project.callerId = callerId;
         project.callId = callId;
         project.token = token;
+        project.blazexFee = (blazexFeePercent*amount)/10000;
         project.user = address(msg.sender);
         project.chain = chain;
     }
@@ -64,8 +66,16 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
     function refund(uint256 callId) public onlyManager nonReentrant {
         Project storage project = projects[callId];
         require(
-            project.deposited && !project.paid && !project.refunded,
-            "Escrow: Not deposited yet Or Refunded"
+            project.deposited,
+            "Escrow: Not deposited yet"
+        );
+        require(
+            !project.paid,
+            "Escrow: Not Paid yet"
+        );
+        require(
+            !project.refunded,
+            "Escrow: Refunded"
         );
 
         project.refunded = true;
@@ -77,9 +87,11 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
         address influencer
     ) external onlyManager nonReentrant {
         Project storage project = projects[callId];
-        require(!project.paid && !project.refunded, "Escrow: Accepted already");
+        require(!project.paid, "Escrow: Paid already");
+        require(!project.refunded, "Escrow: Refunded");
+        require(project.deposited, "Escrow: Not deposited yet");
         project.paid = true;
-        uint256 blazexFee = (blazexFeePercent*project.amount)/10000;
+        uint256 blazexFee = project.blazexFee;
         uint256 amount = project.amount - blazexFee;
         payable(address(blazexWallet)).transfer(blazexFee);
         payable(address(influencer)).transfer(amount);
