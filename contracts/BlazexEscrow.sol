@@ -11,8 +11,6 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
     address public manager = msg.sender;
     address public blazexWallet = msg.sender;
 
-    uint256 public nextCallId = 0;
-
     struct Project {
         uint256 amount;
         address caller;
@@ -37,47 +35,29 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
 
     mapping(uint256 => Project) public projects;
 
-    event RequestAdded(
-        address caller,
+    constructor() {}
+
+    function deposit(
         uint256 amount,
         uint256 blazexFee,
         uint256 callerId,
         uint256 callId,
-        string telegramId,
-        address token,
-        uint256 chain,
-        uint256 blockTime
-    );
-
-    event Refunded(
-      uint256 callId,
-      uint256 blockTime
-    );
-
-    constructor() {}
-
-    function newRequest(
-        uint256 amount,
-        uint256 blazexFee,
-        uint256 callerId,
         string memory telegramId,
         address token,
         address caller,
         uint256 chain
     ) external payable nonReentrant {
         require(amount > 0, "Escrow: amount must be greater then 0");
-        uint256 callId = nextCallId;
-        nextCallId++;
-        Project storage project = projects[callId];
-        if (msg.value > 0) {
-            require(
-                msg.value >= amount,
-                "Escrow: pay Equivalent to amount or 0 for later"
-            );
-            payable(address(this)).transfer(msg.value);
-            project.paid = true;
-        }
 
+        Project storage project = projects[callId];
+        require(!project.paid, "Escrow: Paid already");
+        require(
+            msg.value >= amount,
+            "Escrow: Insufficient value"
+        );
+        payable(address(this)).transfer(msg.value);
+
+        project.paid = true;
         project.blazexFee = blazexFee;
         project.amount = amount;
         project.callerId = callerId;
@@ -86,21 +66,9 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
         project.token = token;
         project.caller = caller;
         project.chain = chain;
-
-        emit RequestAdded(
-            caller,
-            amount,
-            blazexFee,
-            callerId,
-            callId,
-            telegramId,
-            token,
-            chain,
-            block.timestamp
-        );
     }
 
-    function callRefund(uint256 callId) public onlyManager nonReentrant {
+    function refund(uint256 callId) public onlyManager nonReentrant {
         Project storage project = projects[callId];
         require(
             project.paid && !project.refunded,
@@ -109,25 +77,18 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
 
         project.refunded = true;
         payable(project.caller).transfer(project.amount);
-
     }
 
-    function payEscrow(uint256 callId) external payable nonReentrant {
-      Project storage project = projects[callId];
-      require(!project.paid, "Escrow: Already paid");
-      require(project.amount <= msg.value, "Escrow: Insufficient Value");
-      require(address(msg.sender) == project.caller, "Escrow: Invalid caller");
-      payable(address(this)).transfer(msg.value);
-      project.paid = true;
-    }
-
-    function acceptRequest(uint256 callId, address influencer) external onlyManager() nonReentrant {
-      Project storage project = projects[callId];
-      require(!project.callApproved, "Escrow: Accepted already");
-      project.callApproved = true;
-      uint256 amount = project.amount - project.blazexFee;
-      payable(address(blazexWallet)).transfer(project.blazexFee);
-      payable(address(influencer)).transfer(amount);
+    function pay(
+        uint256 callId,
+        address influencer
+    ) external onlyManager nonReentrant {
+        Project storage project = projects[callId];
+        require(!project.callApproved, "Escrow: Accepted already");
+        project.callApproved = true;
+        uint256 amount = project.amount - project.blazexFee;
+        payable(address(blazexWallet)).transfer(project.blazexFee);
+        payable(address(influencer)).transfer(amount);
     }
 
     function changeManager(address _newManager) external onlyOwner {
