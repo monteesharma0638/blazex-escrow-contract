@@ -9,7 +9,7 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
     uint256 public feeAmountCollected;
 
     address public manager = msg.sender;
-    address public blazexWallet = msg.sender;
+    address public blazexWallet = msg.sender; // can update to staking contract later.
 
     struct Project {
         uint256 amount;
@@ -95,10 +95,8 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
         manager = _newManager;
     }
 
-    function withdrawFee() external onlyOwner nonReentrant {
-        require(feeAmountCollected > 0, "Escrow: No Fee collected yet");
-        feeAmountCollected = 0;
-        payable(owner()).transfer(feeAmountCollected);
+    function changeBlazexWallet(address _newFeeWallet) external onlyOwner {
+      blazexWallet = _newFeeWallet;
     }
 
     function emergencyWithdraw() external onlyOwner nonReentrant {
