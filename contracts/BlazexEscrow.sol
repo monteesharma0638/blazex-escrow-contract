@@ -95,7 +95,7 @@ contract BlazexEscrow is Ownable, ReentrancyGuard {
         uint256 amount = project.amount - blazexFee;
         payable(address(blazexWallet)).transfer(blazexFee);
         (bool sent,) = influencer.call{value: amount}("");
-        require(sent, "Address privided can't receive payments. Please use a different ethereum address");
+        require(sent, "Address provided can't receive payments. Please use a different ethereum address");
     }
 
     function changeManager(address _newManager) external onlyOwner {
